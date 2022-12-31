@@ -16,7 +16,7 @@ use syn::{
 struct BytePat {
     pub ident: Ident,
     pub _colon: Token![:],
-    pub ty: Ident,
+    pub ty: syn::Path,
     pub _slash: Token![/],
     pub byte_order: Ident,
 }
@@ -99,7 +99,7 @@ pub fn match_bytes(item: TokenStream) -> TokenStream {
 
 fn conversion_for(byte_pat: &BytePat) -> Stmt {
     let mut elems = Punctuated::new();
-    for position in 0..4 {
+    for position in 0..size_of(byte_pat.ty.clone()) {
         let mut segments = Punctuated::new();
         segments.push(syn::PathSegment {
             arguments: syn::PathArguments::None,
@@ -124,7 +124,7 @@ fn conversion_for(byte_pat: &BytePat) -> Stmt {
     let mut segments = Punctuated::new();
     segments.push(syn::PathSegment {
         arguments: syn::PathArguments::None,
-        ident: byte_pat.ty.clone(),
+        ident: byte_pat.ty.get_ident().unwrap().clone(),
     });
     segments.push(syn::PathSegment {
         arguments: syn::PathArguments::None,
@@ -175,7 +175,7 @@ fn conversion_for(byte_pat: &BytePat) -> Stmt {
 
 fn expand_byte_pat(byte_pat: BytePat) -> Vec<syn::Pat> {
     let mut result = vec![];
-    for position in 0..4 {
+    for position in 0..size_of(byte_pat.ty) {
         let new_ident = Ident::new(
             &(byte_pat.ident.to_string().to_owned() + &position.to_string()),
             Span::call_site(),
@@ -189,4 +189,26 @@ fn expand_byte_pat(byte_pat: BytePat) -> Vec<syn::Pat> {
         }))
     }
     result
+}
+
+macro_rules! size_of_conditional {
+    ($subject:expr, [$ty:ty]) => (
+      if $subject.is_ident(stringify!($ty)) {
+        return std::mem::size_of::<$ty>();
+      } else {
+       panic!("Unknown type: {}", stringify!($subject))
+     });
+    ($subject:expr, [$ty:ty, $($rest:ty),+]) => (
+      if $subject.is_ident(stringify!($ty)) {
+        return std::mem::size_of::<$ty>();
+      } else {
+        size_of_conditional!($subject, [$($rest),+])
+    })
+}
+
+fn size_of(ty: syn::Path) -> usize {
+    size_of_conditional!(
+        ty,
+        [u8, i8, u16, i16, u32, i32, u64, i64, i128, u128, isize, usize, f32, f64]
+    )
 }
