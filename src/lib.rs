@@ -12,7 +12,6 @@ use syn::{
     punctuated::Punctuated,
     token, Expr, Pat, Result, Stmt, Token, UnOp,
 };
-#[derive(Clone)]
 struct BytePat {
     pub ident: Ident,
     pub _colon: Token![:],
@@ -21,7 +20,6 @@ struct BytePat {
     pub byte_order: Ident,
 }
 
-#[derive(Clone)]
 enum PatOrBytePat {
     Pat(Pat),
     BytePat(BytePat),
